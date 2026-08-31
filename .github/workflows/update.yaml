@@ -1,0 +1,43 @@
+name: Update Fedora and project versions
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update-versions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Read versions.yaml
+        id: read-versions
+        shell: bash
+        run: |
+          versions=$(yq -o=json -I=0 '.' versions.yaml)
+          echo "versions=$versions" >> $GITHUB_OUTPUT
+
+      - name: Get latest Fedora versions
+        id: latest-fedora-versions
+        shell: bash
+        run: |
+          latest_versions=$(curl -fsSL -H "Accept: application/json" "https://bodhi.fedoraproject.org/releases/?state=current" | \
+            jq '[.releases[] | select(.id_prefix=="FEDORA" and (.name | test("Flatpaks") | not)) | .version | tonumber] | sort_by(-.)')
+          echo "latest_versions=$latest_versions" >> $GITHUB_OUTPUT
+
+      - name: Get latest LenovoLegionLinux version
+        id: latest-project-version
+        shell: bash
+        run: |
+          latest_version=$(curl -fsSL "https://api.github.com/repos/johnfanv2/LenovoLegionLinux/tags" | jq '.[0].name')
+          echo "latest_version=$latest_version" >> $GITHUB_OUTPUT
+
+      - name: Update versions.yaml
+        shell: bash
+        run: |
+          fedora_versions="${{ steps.latest-fedora-versions.outputs.latest_versions }}"
+          project_version="${{ steps.latest-project-version.outputs.latest_version }}"
+          json_value=$(jq -n --argjson fedora-versions "$fedora_versions" --argjson project-version "$project_version" '$ARGS.named')
+          yaml_value=$(echo "$json_value" | yq -P)
+          echo "$yaml_value" > versions.yaml
+          cat versions.yaml
