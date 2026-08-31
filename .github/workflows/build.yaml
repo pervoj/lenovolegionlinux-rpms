@@ -60,15 +60,18 @@ jobs:
           fi
 
       - name: Checkout repository
+        if: steps.check-existing.outputs.exists != 'true'
         uses: actions/checkout@v7
 
       - name: Setup build environment
+        if: steps.check-existing.outputs.exists != 'true'
         shell: bash
         run: |
           dnf install -y rpmdevtools
           mkdir -p ./rpms
 
       - name: Download source code
+        if: steps.check-existing.outputs.exists != 'true'
         shell: bash
         run: |
           curl -fsSL "https://github.com/johnfanv2/LenovoLegionLinux/archive/refs/tags/$PROJECT_VERSION.tar.gz" -o ./source.tar.gz
@@ -77,21 +80,30 @@ jobs:
           rm -f ./source.tar.gz
 
       - name: Build "dkms-LenovoLegionLinux" RPM
+        if: steps.check-existing.outputs.exists != 'true'
         uses: ./.github/actions/build-rpm
         with:
           specfile: ./source/deploy/build_packages/lenovolegionlinux-dkms.spec
           outdir: ./rpms
 
       - name: Build "python-darkdetect" RPM
+        if: steps.check-existing.outputs.exists != 'true'
         uses: ./.github/actions/build-rpm
         with:
           specfile: ./source/deploy/build_packages/darkdetect.spec
           outdir: ./rpms
 
       - name: Build "python-LenovoLegionLinux" RPM
+        if: steps.check-existing.outputs.exists != 'true'
         uses: ./.github/actions/build-rpm
         with:
           specfile: ./source/deploy/build_packages/lenovolegionlinux.spec
           outdir: ./rpms
 
-      - run: ls -l ./rpms
+      - name: Push OCI artifact to GHCR
+        if: steps.check-existing.outputs.exists != 'true'
+        shell: bash
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+          metadata=$(oras push --format json "$OCI_REPO:$OCI_TAG" ./rpms/*.rpm)
+          echo $metadata | jq
