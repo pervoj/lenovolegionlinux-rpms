@@ -29,7 +29,7 @@ jobs:
         id: latest-project-version
         shell: bash
         run: |
-          latest_version=$(curl -fsSL "https://api.github.com/repos/johnfanv2/LenovoLegionLinux/tags" | jq -r '.[0].name | tostring')
+          latest_version=$(curl -fsSL "https://api.github.com/repos/johnfanv2/LenovoLegionLinux/tags" | jq '.[0].name')
           echo "latest_version=$latest_version" >> $GITHUB_OUTPUT
 
       - name: Update versions.yaml
