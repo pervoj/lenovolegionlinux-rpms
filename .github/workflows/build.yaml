@@ -51,6 +51,11 @@ jobs:
       - name: Setup ORAS
         uses: oras-project/setup-oras@v2.0.1
 
+      - name: Login to GHCR
+        shell: bash
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
+
       - name: Check for existing build
         id: check-existing
         shell: bash
@@ -112,5 +117,4 @@ jobs:
         if: steps.check-existing.outputs.exists != 'true'
         shell: bash
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
           oras push "$OCI_REPO:$OCI_TAG" ./rpms/*.rpm
