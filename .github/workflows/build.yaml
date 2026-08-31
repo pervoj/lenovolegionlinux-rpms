@@ -1,7 +1,9 @@
 name: Build RPMs and push to GHCR
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 env:
   OCI_REPO: ghcr.io/${{ github.repository }}
@@ -111,5 +113,4 @@ jobs:
         shell: bash
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
-          metadata=$(oras push --format json "$OCI_REPO:$OCI_TAG" ./rpms/*.rpm)
-          echo $metadata | jq
+          oras push "$OCI_REPO:$OCI_TAG" ./rpms/*.rpm
