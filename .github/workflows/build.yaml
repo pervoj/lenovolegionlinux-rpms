@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+  workflow_run:
+    workflows: ["Update Fedora and project versions"]
+    types:
+      - completed
 
 env:
   OCI_REPO: ghcr.io/${{ github.repository }}
