@@ -49,7 +49,7 @@ jobs:
 
     steps:
       - name: Setup ORAS
-        uses: oras-project/setup-oras@v2.0.1
+        uses: oras-project/setup-oras@v2
 
       - name: Login to GHCR
         shell: bash
