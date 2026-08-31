@@ -12,12 +12,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
 
       - name: Read versions.yaml
         id: read_versions
         run: |
-          versions=$(yq -o=json '.' versions.yaml)
+          versions=$(yq -o=json -I=0 '.' versions.yaml)
           echo "versions=$versions" >> $GITHUB_OUTPUT
 
   build:
@@ -31,8 +31,42 @@ jobs:
       image: fedora:${{ matrix.fedora-version }}
       options: --privileged
 
+    env:
+      FEDORA_VERSION: ${{ matrix.fedora-version }}
+      PROJECT_VERSION: ${{ fromJSON(needs.versions.outputs.versions).project-version }}
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
 
-      - run: ls
+      - name: Setup environment
+        run: |
+          dnf install -y fedora-packager rpmdevtools
+          mkdir -p ./rpms
+
+      - name: Download source code
+        run: |
+          curl -fsSL "https://github.com/johnfanv2/LenovoLegionLinux/archive/refs/tags/$PROJECT_VERSION.tar.gz" -o ./source.tar.gz
+          mkdir -p ./source
+          tar -xzf ./source.tar.gz -C ./source --strip-components=1
+          rm -f ./source.tar.gz
+
+      - name: Build "dkms-LenovoLegionLinux" RPM
+        uses: ./.github/actions/build-rpm
+        with:
+          specfile: ./source/deploy/build_packages/lenovolegionlinux-dkms.spec
+          outdir: ./rpms
+
+      - name: Build "python-darkdetect" RPM
+        uses: ./.github/actions/build-rpm
+        with:
+          specfile: ./source/deploy/build_packages/darkdetect.spec
+          outdir: ./rpms
+
+      - name: Build "python-LenovoLegionLinux" RPM
+        uses: ./.github/actions/build-rpm
+        with:
+          specfile: ./source/deploy/build_packages/lenovolegionlinux.spec
+          outdir: ./rpms
+
+      - run: ls -l ./rpms

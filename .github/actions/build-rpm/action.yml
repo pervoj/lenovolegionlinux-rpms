@@ -1,0 +1,54 @@
+name: "Build RPM"
+description: "Builds RPM packages from spec file"
+
+inputs:
+  specfile:
+    description: "The spec file to use for building the RPM"
+    required: true
+  outdir:
+    description: "The output directory for the built RPMs"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Ensure running on Fedora
+      shell: bash
+      run: |
+        if ! rpm -E %fedora; then
+          echo "This action must be run on a Fedora system."
+          exit 1
+        fi
+
+    - name: Setup build directory
+      shell: bash
+      run: |
+        build_dir=$(mktemp -d /tmp/build_rpm_XXXXXXXXXX)
+        mkdir -p $build_dir/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+        echo "build_dir=$build_dir" >> "$GITHUB_ENV"
+
+    - name: Setup build environment
+      shell: bash
+      run: |
+        dnf install -y rpmdevtools
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        dnf builddep -y "${{ inputs.specfile }}"
+
+    - name: Build the RPM
+      shell: bash
+      run: |
+        rpmbuild -ba \
+          --define "_topdir $build_dir" \
+          --undefine "_disable_source_fetch" \
+          --define "_unpackaged_files_terminate_build 0" \
+          --define "debug_package %{nil}" \
+          "${{ inputs.specfile }}"
+
+    - name: Copy built RPMs to output directory
+      shell: bash
+      run: |
+        mkdir -p "${{ inputs.outdir }}"
+        cp -v $build_dir/RPMS/*/*.rpm "${{ inputs.outdir }}"
