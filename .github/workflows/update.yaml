@@ -23,7 +23,7 @@ jobs:
         run: |
           latest_versions=$(curl -fsSL -H "Accept: application/json" "https://bodhi.fedoraproject.org/releases/?state=current" | \
             jq -r '[.releases[] | select(.id_prefix=="FEDORA" and (.name | test("Flatpaks") | not)) | .version | tonumber] | sort_by(-.) | tostring')
-          echo "latest_versions=$latest_versions" >> $GITHUB_OUTPUT
+          echo "latest_versions_json=$latest_versions" >> $GITHUB_OUTPUT
 
       - name: Get latest LenovoLegionLinux version
         id: latest-project-version
@@ -35,9 +35,9 @@ jobs:
       - name: Update versions.yaml
         shell: bash
         run: |
-          fedora_versions="${{ steps.latest-fedora-versions.outputs.latest_versions }}"
+          fedora_versions_json="${{ steps.latest-fedora-versions.outputs.latest_versions_json }}"
           project_version="${{ steps.latest-project-version.outputs.latest_version }}"
-          json_value=$(jq -rn --argjson fedora-versions "$fedora_versions" --argjson project-version "$project_version" '$ARGS.named | tostring')
+          json_value=$(jq -rn --argjson fedora-versions "$fedora_versions_json" --arg project-version "$project_version" '$ARGS.named | tostring')
           yaml_value=$(echo "$json_value" | yq -P)
           echo "$yaml_value" > versions.yaml
           cat versions.yaml
