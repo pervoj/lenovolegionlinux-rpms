@@ -6,6 +6,10 @@ on:
 jobs:
   update-versions:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -40,4 +44,9 @@ jobs:
           json_value=$(jq -rn --argjson fedora-versions "$fedora_versions_json" --arg project-version "$project_version" '$ARGS.named | tostring')
           yaml_value=$(echo "$json_value" | yq -P)
           echo "$yaml_value" > versions.yaml
-          cat versions.yaml
+
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: "Update Fedora and project versions"
+          file_pattern: "versions.yaml"
