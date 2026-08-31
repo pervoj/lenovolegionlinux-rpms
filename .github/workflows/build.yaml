@@ -123,3 +123,8 @@ jobs:
         working-directory: ./rpms
         run: |
           oras push "$OCI_REPO:$OCI_TAG" ./*.rpm
+
+      - name: Tag latest build for Fedora version
+        shell: bash
+        run: |
+          oras tag "$OCI_REPO:$OCI_TAG" "f$FEDORA_VERSION"
