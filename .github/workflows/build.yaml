@@ -38,7 +38,6 @@ jobs:
     env:
       FEDORA_VERSION: ${{ matrix.fedora-version }}
       PROJECT_VERSION: ${{ fromJSON(needs.versions.outputs.versions).project-version }}
-      OCI_TAG: "f$FEDORA_VERSION-$PROJECT_VERSION"
 
     steps:
       - name: Setup ORAS
@@ -48,6 +47,9 @@ jobs:
         id: check-existing
         shell: bash
         run: |
+          OCI_TAG="f$FEDORA_VERSION-$PROJECT_VERSION"
+          echo "OCI_TAG=$OCI_TAG" >> $GITHUB_ENV
+
           echo "REPO: $OCI_REPO:$OCI_TAG"
           if oras manifest fetch "$OCI_REPO:$OCI_TAG" > /dev/null 2>&1; then
             echo "exists=true" >> $GITHUB_OUTPUT
