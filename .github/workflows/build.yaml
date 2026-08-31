@@ -3,19 +3,23 @@ name: Build RPMs and push to GHCR
 on:
   workflow_dispatch:
 
+env:
+  OCI_REPO: ghcr.io/${{ github.repository }}
+
 jobs:
   versions:
     runs-on: ubuntu-latest
 
     outputs:
-      versions: ${{ steps.read_versions.outputs.versions }}
+      versions: ${{ steps.read-versions.outputs.versions }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
 
       - name: Read versions.yaml
-        id: read_versions
+        id: read-versions
+        shell: bash
         run: |
           versions=$(yq -o=json -I=0 '.' versions.yaml)
           echo "versions=$versions" >> $GITHUB_OUTPUT
@@ -34,17 +38,36 @@ jobs:
     env:
       FEDORA_VERSION: ${{ matrix.fedora-version }}
       PROJECT_VERSION: ${{ fromJSON(needs.versions.outputs.versions).project-version }}
+      OCI_TAG: "f$FEDORA_VERSION-$PROJECT_VERSION"
 
     steps:
+      - name: Setup ORAS
+        uses: oras-project/setup-oras@v2.0.1
+
+      - name: Check for existing build
+        id: check-existing
+        shell: bash
+        run: |
+          echo "REPO: $OCI_REPO:$OCI_TAG"
+          if oras manifest fetch "$OCI_REPO:$OCI_TAG" > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "::notice::Skipping build, artifact with content hash $OCI_TAG already exists"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "No existing artifact for $OCI_TAG, proceeding with build"
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Setup environment
+      - name: Setup build environment
+        shell: bash
         run: |
-          dnf install -y fedora-packager rpmdevtools
+          dnf install -y rpmdevtools
           mkdir -p ./rpms
 
       - name: Download source code
+        shell: bash
         run: |
           curl -fsSL "https://github.com/johnfanv2/LenovoLegionLinux/archive/refs/tags/$PROJECT_VERSION.tar.gz" -o ./source.tar.gz
           mkdir -p ./source
