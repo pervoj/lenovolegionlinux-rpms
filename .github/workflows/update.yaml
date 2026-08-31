@@ -22,14 +22,14 @@ jobs:
         shell: bash
         run: |
           latest_versions=$(curl -fsSL -H "Accept: application/json" "https://bodhi.fedoraproject.org/releases/?state=current" | \
-            jq '[.releases[] | select(.id_prefix=="FEDORA" and (.name | test("Flatpaks") | not)) | .version | tonumber] | sort_by(-.)')
+            jq -r '[.releases[] | select(.id_prefix=="FEDORA" and (.name | test("Flatpaks") | not)) | .version | tonumber] | sort_by(-.) | tostring')
           echo "latest_versions=$latest_versions" >> $GITHUB_OUTPUT
 
       - name: Get latest LenovoLegionLinux version
         id: latest-project-version
         shell: bash
         run: |
-          latest_version=$(curl -fsSL "https://api.github.com/repos/johnfanv2/LenovoLegionLinux/tags" | jq '.[0].name')
+          latest_version=$(curl -fsSL "https://api.github.com/repos/johnfanv2/LenovoLegionLinux/tags" | jq -r '.[0].name | tostring')
           echo "latest_version=$latest_version" >> $GITHUB_OUTPUT
 
       - name: Update versions.yaml
@@ -37,7 +37,7 @@ jobs:
         run: |
           fedora_versions="${{ steps.latest-fedora-versions.outputs.latest_versions }}"
           project_version="${{ steps.latest-project-version.outputs.latest_version }}"
-          json_value=$(jq -n --argjson fedora-versions "$fedora_versions" --argjson project-version "$project_version" '$ARGS.named')
+          json_value=$(jq -rn --argjson fedora-versions "$fedora_versions" --argjson project-version "$project_version" '$ARGS.named | tostring')
           yaml_value=$(echo "$json_value" | yq -P)
           echo "$yaml_value" > versions.yaml
           cat versions.yaml
