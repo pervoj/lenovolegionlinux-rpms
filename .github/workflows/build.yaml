@@ -120,5 +120,6 @@ jobs:
       - name: Push OCI artifact to GHCR
         if: steps.check-existing.outputs.exists != 'true'
         shell: bash
+        working-directory: ./rpms
         run: |
-          oras push "$OCI_REPO:$OCI_TAG" ./rpms/*.rpm
+          oras push "$OCI_REPO:$OCI_TAG" ./*.rpm
