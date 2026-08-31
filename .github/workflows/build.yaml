@@ -1,0 +1,38 @@
+name: Build RPMs and push to GHCR
+
+on:
+  workflow_dispatch:
+
+jobs:
+  versions:
+    runs-on: ubuntu-latest
+
+    outputs:
+      versions: ${{ steps.read_versions.outputs.versions }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Read versions.yaml
+        id: read_versions
+        run: |
+          versions=$(yq -o=json '.' versions.yaml)
+          echo "versions=$versions" >> $GITHUB_OUTPUT
+
+  build:
+    needs: versions
+    strategy:
+      matrix:
+        fedora-version: ${{ fromJSON(needs.versions.outputs.versions).fedora-versions }}
+
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:${{ matrix.fedora-version }}
+      options: --privileged
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - run: ls
