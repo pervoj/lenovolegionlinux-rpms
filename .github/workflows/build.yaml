@@ -8,6 +8,12 @@ on:
     workflows: ["Update Fedora and project versions"]
     types:
       - completed
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: Rebuild and push even if the version artifact already exists
+        type: boolean
+        default: false
 
 env:
   OCI_REPO: ghcr.io/${{ github.repository }}
@@ -67,8 +73,16 @@ jobs:
           OCI_TAG="f$FEDORA_VERSION-$PROJECT_VERSION"
           echo "OCI_TAG=$OCI_TAG" >> $GITHUB_ENV
 
+          force_rebuild=false
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.force_rebuild }}" = "true" ]; then
+            force_rebuild=true
+          fi
+
           echo "REPO: $OCI_REPO:$OCI_TAG"
-          if oras manifest fetch "$OCI_REPO:$OCI_TAG" > /dev/null 2>&1; then
+          if [ "$force_rebuild" = "true" ]; then
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Force rebuild requested, proceeding with build"
+          elif oras manifest fetch "$OCI_REPO:$OCI_TAG" > /dev/null 2>&1; then
             echo "exists=true" >> $GITHUB_OUTPUT
             echo "::notice::Skipping build, artifact with tag $OCI_TAG already exists"
           else
@@ -122,9 +136,12 @@ jobs:
         shell: bash
         working-directory: ./rpms
         run: |
-          oras push "$OCI_REPO:$OCI_TAG" ./*.rpm
+          # Push versioned and rolling tags together so fN is not resolved from a
+          # stale fN-vX.Y manifest immediately after overwrite (GHCR caching).
+          oras push "$OCI_REPO:${OCI_TAG},f${FEDORA_VERSION}" ./*.rpm
 
       - name: Tag latest build for Fedora version
+        if: steps.check-existing.outputs.exists == 'true'
         shell: bash
         run: |
           oras tag "$OCI_REPO:$OCI_TAG" "f$FEDORA_VERSION"

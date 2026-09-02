@@ -8,6 +8,9 @@ inputs:
   outdir:
     description: "The output directory for the built RPMs"
     required: true
+  defines:
+    description: "Optional extra rpmbuild --define arguments, one 'macro value' pair per line"
+    required: false
 
 runs:
   using: "composite"
@@ -25,6 +28,7 @@ runs:
       run: |
         build_dir=$(mktemp -d /tmp/build_rpm_XXXXXXXXXX)
         mkdir -p $build_dir/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+        cp patches/*.patch "$build_dir/SOURCES/" 2>/dev/null || true
         echo "build_dir=$build_dir" >> "$GITHUB_ENV"
 
     - name: Install dependencies
@@ -35,11 +39,20 @@ runs:
     - name: Build the RPM
       shell: bash
       run: |
+        extra_defines=()
+        if [ -n "${{ inputs.defines }}" ]; then
+          while IFS= read -r define_line || [ -n "$define_line" ]; do
+            [ -z "$define_line" ] && continue
+            extra_defines+=(--define "$define_line")
+          done <<< "${{ inputs.defines }}"
+        fi
+
         rpmbuild -ba \
           --define "_topdir $build_dir" \
           --undefine "_disable_source_fetch" \
           --define "_unpackaged_files_terminate_build 0" \
           --define "debug_package %{nil}" \
+          "${extra_defines[@]}" \
           "${{ inputs.specfile }}"
 
     - name: Copy built RPMs to output directory
